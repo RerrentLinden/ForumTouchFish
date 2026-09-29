@@ -12,13 +12,3 @@
 
 - 点标题栏中间的「工作记录 - Word」可以收起或展开功能区和状态栏；往下滚动时也会自动收起。
 - 功能区右侧是站点的快捷操作，如发帖、点赞或收藏、回复。
-
-## 自检
-
-`word-moyu-title-toggle.selftest.html` 检查三个脚本的标题切换和滚动收起。在仓库根目录起一个静态服务：
-
-```bash
-python3 -m http.server 8000
-```
-
-然后打开 <http://localhost:8000/word-moyu-title-toggle.selftest.html>，页面标题显示 `PASS` 即通过。
