@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LINUX DO / IDC Flare Word 摸鱼版
 // @namespace    https://codex.local/userscripts
-// @version      1.0.12
+// @version      1.0.13
 // @description  隐藏头像，并把 LINUX DO / IDC Flare 伪装成 Microsoft Word 文档界面。
 // @author       Codex
 // @match        https://linux.do/*
@@ -359,7 +359,6 @@
     html.codex-word-theme #reply-control.open:not(.fullscreen) {
       box-sizing: border-box !important;
       right: auto !important;
-      bottom: var(--codex-word-status-height) !important;
       left: 50% !important;
       width: min(calc(100vw - 64px), 1180px) !important;
       max-height: min(48vh, 430px) !important;
@@ -370,6 +369,74 @@
 
     html.codex-word-theme #reply-control.open:not(.fullscreen) .reply-area {
       width: 100% !important;
+    }
+
+    /*
+     * Word 界面相当于窗口边框：原本铺满视口或贴着视口边缘的浮层，
+     * 都排进功能区和状态栏之间，界面本身不盖住任何内容。
+     */
+    html.codex-word-theme #reply-control:not(.fullscreen) {
+      bottom: var(--codex-word-status-height) !important;
+    }
+
+    html.codex-word-theme.fullscreen-composer #reply-control.fullscreen {
+      bottom: var(--codex-word-status-height);
+      height: calc(
+        var(--composer-vh, 1vh) * 100 - var(--codex-word-ui-height) - var(--codex-word-status-height)
+      ) !important;
+    }
+
+    html.codex-word-theme .d-modal {
+      top: var(--codex-word-ui-height);
+      height: calc(100% - var(--codex-word-ui-height) - var(--codex-word-status-height));
+    }
+
+    html.codex-word-theme .d-modal__container {
+      max-height: min(
+        var(--modal-max-height, 80vh),
+        calc(100vh - var(--codex-word-ui-height) - var(--codex-word-status-height) - 24px)
+      ) !important;
+    }
+
+    /* 灯箱遮罩仍铺满窗口；图片由 fitLightbox() 让开两栏，按钮和图片说明在这里挪进来。 */
+    html.codex-word-theme .pswp__top-bar {
+      top: var(--codex-word-ui-height);
+    }
+
+    html.codex-word-theme .pswp__button--arrow {
+      margin-top: calc((var(--codex-word-ui-height) - var(--codex-word-status-height)) / 2 - 50px);
+    }
+
+    html.codex-word-theme .pswp__caption {
+      bottom: calc(var(--codex-word-status-height) + var(--safe-area-inset-bottom, 0px));
+    }
+
+    html.codex-word-theme .chat-drawer-outlet-container {
+      bottom: var(--codex-word-status-height);
+      max-height: calc(100% - var(--header-offset) - 15px - var(--codex-word-status-height));
+    }
+
+    html.codex-word-theme .with-topic-progress {
+      bottom: calc(
+        env(safe-area-inset-bottom) + var(--composer-height, 0px) + var(--codex-word-status-height)
+      );
+    }
+
+    html.codex-word-theme .menu-panel.drop-down {
+      max-height: calc(100dvh - var(--header-offset) - 1em - var(--codex-word-status-height));
+    }
+
+    @media (width >= 48rem) {
+      html.codex-word-theme .sidebar-wrapper {
+        height: calc(
+          var(--composer-vh, 1dvh) * 100 - var(--main-outlet-offset, 0px) - var(--codex-word-status-height)
+        );
+      }
+    }
+
+    /* LINUX DO 站点组件的操作提示，原本离视口顶部 10%。 */
+    html.codex-word-theme #messageToast {
+      top: calc(var(--codex-word-ui-height) + 10%);
     }
 
     #codex-word-status {
@@ -536,6 +603,39 @@
   `;
   (document.head || root).append(style);
 
+  /*
+   * 图片灯箱（PhotoSwipe）按整个视口给图片排版。它在 init() 之前把实例写到 window.pswp，
+   * 这里接住实例，把功能区和状态栏的高度加进内边距，图片的适配、缩放和拖动范围就都落在两栏之间。
+   */
+  const fitLightbox = (pswp) => {
+    const { paddingFn, padding } = pswp.options;
+    pswp.options.paddingFn = (viewportSize, itemData, index) => {
+      const base = paddingFn?.(viewportSize, itemData, index) ?? padding ?? {};
+      const chrome = getComputedStyle(root);
+      return {
+        ...base,
+        top: (base.top || 0) + parseFloat(chrome.getPropertyValue("--codex-word-ui-height")),
+        bottom: (base.bottom || 0) + parseFloat(chrome.getPropertyValue("--codex-word-status-height")),
+      };
+    };
+  };
+
+  const watchLightbox = () => {
+    let current = window.pswp;
+    Object.defineProperty(window, "pswp", {
+      configurable: true,
+      get: () => current,
+      set: (pswp) => {
+        current = pswp;
+        if (typeof pswp?.on !== "function") return;
+        fitLightbox(pswp);
+        // 灯箱关闭时 PhotoSwipe 会 delete window.pswp，连同这个访问器一起删掉，关闭后重新装上。
+        pswp.on("destroy", () => queueMicrotask(watchLightbox));
+      },
+    });
+  };
+  watchLightbox();
+
   const isTopicPage = () => location.pathname.startsWith("/t/");
   const mainPost = () => document.querySelector('#post_1, .topic-post[data-post-number="1"]');
   const officialBookmark = () =>
@@ -633,8 +733,11 @@
   const setupAutoHide = () => {
     let touchY;
 
-    const toggle = (hidden) =>
+    const toggle = (hidden) => {
+      // 灯箱打开时滚轮和方向键用来平移、切换图片，功能区保持不动。
+      if (window.pswp) return;
       root.classList.toggle("codex-word-ribbon-hidden", hidden && window.scrollY > 48);
+    };
 
     window.addEventListener("wheel", (event) => {
       if (Math.abs(event.deltaY) >= 4) toggle(event.deltaY > 0);
@@ -729,6 +832,8 @@
     document.querySelector(".codex-word-title").addEventListener("click", () => {
       manualToggleUntil = performance.now() + 250;
       root.classList.toggle("codex-word-ribbon-hidden");
+      // 灯箱开着时按新的两栏高度重新排版图片。
+      window.pswp?.updateSize(true);
     });
 
     document.querySelectorAll("[data-codex-action]").forEach((button) => {

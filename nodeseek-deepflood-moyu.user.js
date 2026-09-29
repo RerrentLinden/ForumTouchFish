@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek / DeepFlood Word 摸鱼版
 // @namespace    https://codex.local/userscripts
-// @version      2.4.6
+// @version      2.4.7
 // @description  隐藏头像，并把 NodeSeek / DeepFlood 伪装成 Microsoft Word 文档界面。
 // @author       Codex
 // @match        https://nodeseek.com/*
@@ -710,6 +710,40 @@
 
     .codex-word-close-editor {
       flex: 0 0 auto;
+    }
+
+    /*
+     * Word 界面相当于窗口边框：锚点跳转停在功能区和顶部导航之下；
+     * 原本铺满视口的看图层、确认框、搜索层、面板和全屏编辑器排进功能区和状态栏之间。
+     */
+    html.codex-word-nodeseek {
+      scroll-padding-top: calc(var(--word-ui-height) + 44px + 8px);
+      scroll-padding-bottom: var(--word-status-height);
+    }
+
+    html.codex-word-nodeseek :is(
+      .image-box,
+      .msc-confirm,
+      .search-overlay,
+      .stardust-panel.with-mask,
+      .vote-panel.with-mask,
+      #left-slide-panel,
+      #editor-body.fullscreen-editor
+    ) {
+      top: var(--word-ui-height) !important;
+      bottom: var(--word-status-height) !important;
+      height: auto !important;
+    }
+
+    /* 看图层原本用 top: 50% 加 translateY(-50%) 垂直居中，上下贴边后只保留水平居中。 */
+    html.codex-word-nodeseek .image-box {
+      transform: translateX(-50%) !important;
+    }
+
+    /* 头像裁剪框固定 330px 高、上下 auto 居中，只收窄居中的范围。 */
+    html.codex-word-nodeseek .vue-image-crop-upload .vicp-wrap {
+      top: var(--word-ui-height) !important;
+      bottom: var(--word-status-height) !important;
     }
 
     html.codex-word-nodeseek:has(body.dark-layout) {

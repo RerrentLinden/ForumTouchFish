@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         V2EX Word 摸鱼版
 // @namespace    https://codex.local/userscripts
-// @version      2.1.6
+// @version      2.1.7
 // @description  隐藏头像，并把 V2EX 伪装成 Microsoft Word 文档界面。
 // @author       Codex
 // @match        https://v2ex.com/*
@@ -533,6 +533,25 @@
       color: var(--word-blue) !important;
       background: #edf3fb !important;
       border-color: #c9d9f0 !important;
+    }
+
+    /*
+     * Word 界面相当于窗口边框：锚点跳转停在功能区和顶部导航之下；
+     * 原本铺满视口的弹层（Planet 看图、打赏、拖拽上传）排进功能区和状态栏之间，贴底的按钮抬到状态栏之上。
+     */
+    html.codex-word-v2ex {
+      scroll-padding-top: calc(var(--word-ui-height) + 44px + 8px);
+      scroll-padding-bottom: var(--word-status-height);
+    }
+
+    html.codex-word-v2ex :is(#planet-modal, #tip-modal, .dnd-drop-overlay) {
+      top: var(--word-ui-height) !important;
+      bottom: var(--word-status-height) !important;
+      height: auto !important;
+    }
+
+    html.codex-word-v2ex :is(.scroll-top, .dnd-status) {
+      bottom: calc(var(--word-status-height) + 20px) !important;
     }
 
     @media (max-width: 1050px) {
