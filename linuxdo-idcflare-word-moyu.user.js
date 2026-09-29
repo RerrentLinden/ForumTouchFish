@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LINUX DO / IDC Flare Word 摸鱼版
 // @namespace    https://codex.local/userscripts
-// @version      1.1.0
+// @version      1.1.1
 // @description  隐藏头像，并把 LINUX DO / IDC Flare 伪装成 Microsoft Word 文档界面。
 // @author       Codex
 // @match        https://linux.do/*
@@ -158,10 +158,14 @@
       flex: none;
       align-items: center;
       gap: 6px;
-      margin-right: 8px;
+      height: 28px;
+      margin: 0 2px 0 -6px;
+      padding: 0 6px;
+      border-radius: 6px;
       font-size: 12px;
       font-weight: 600;
       white-space: nowrap;
+      cursor: default;
     }
 
     .codex-word-switch {
@@ -171,6 +175,7 @@
       padding: 2px;
       border-radius: 999px;
       background: rgb(255 255 255 / 92%);
+      transition: background-color 150ms ease;
     }
 
     .codex-word-switch::before {
@@ -181,6 +186,18 @@
       border-radius: 50%;
       background: #fff;
       box-shadow: 0 0 0 1px rgb(0 0 0 / 22%), 0 1px 1px rgb(0 0 0 / 18%);
+      transition: transform 150ms ease, background-color 150ms ease;
+    }
+
+    /* 自动保存打开：圆点移到右边；蓝色标题栏上是白底蓝点，深色标题栏上是蓝底白点（见深色模式）。 */
+    .codex-word-autosave.is-on .codex-word-switch {
+      background: #fff;
+    }
+
+    .codex-word-autosave.is-on .codex-word-switch::before {
+      background: var(--word-blue);
+      box-shadow: 0 1px 1px rgb(0 0 0 / 18%);
+      transform: translateX(13px);
     }
 
     :is(.codex-word-tb-btn, .codex-word-tb-split) {
@@ -205,7 +222,7 @@
       height: 11px;
     }
 
-    :is(.codex-word-tb-btn, .codex-word-tb-split, .codex-word-doc-title, .codex-word-pill-edit, .codex-word-round):hover {
+    :is(.codex-word-autosave, .codex-word-tb-btn, .codex-word-tb-split, .codex-word-doc-title, .codex-word-pill-edit, .codex-word-round):hover {
       background: rgb(255 255 255 / 14%);
     }
 
@@ -744,6 +761,14 @@
       background: #a8c7f7;
     }
 
+    html.codex-word-dark .codex-word-autosave.is-on .codex-word-switch {
+      background: #5b9cf0;
+    }
+
+    html.codex-word-dark .codex-word-autosave.is-on .codex-word-switch::before {
+      background: #fff;
+    }
+
     html.codex-word-dark .codex-word-tab:hover,
     html.codex-word-dark :is(.codex-word-btn, .codex-word-big):hover {
       background: #3a3a3a;
@@ -806,7 +831,9 @@
       #codex-word-ui,
       #codex-word-status,
       .codex-word-tabs,
-      .codex-word-ribbon {
+      .codex-word-ribbon,
+      .codex-word-switch,
+      .codex-word-switch::before {
         transition: none !important;
       }
     }
@@ -1188,6 +1215,18 @@
     ui.querySelector(".codex-word-doc-title").addEventListener("click", () => {
       document.documentElement.classList.toggle("codex-word-ribbon-hidden");
       onToggle?.();
+    });
+
+    /* 自动保存开关只是样子，没有实际功能；开关状态按站点记在 localStorage，换页后保持。存储不可用时只在当前页切换。 */
+    const autosave = ui.querySelector(".codex-word-autosave");
+    try {
+      autosave.classList.toggle("is-on", localStorage.getItem("codex-word-autosave") === "on");
+    } catch {}
+    autosave.addEventListener("click", () => {
+      const on = autosave.classList.toggle("is-on");
+      try {
+        localStorage.setItem("codex-word-autosave", on ? "on" : "off");
+      } catch {}
     });
 
     return { actions, wordCount };
