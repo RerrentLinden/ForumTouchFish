@@ -1,0 +1,57 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Word 摸鱼标题切换自检</title>
+<style>
+  body { margin: 0; font: 14px system-ui; }
+  iframe {
+    display: block;
+    width: 1200px;
+    height: 600px;
+    margin-bottom: -408px;
+    border: 0;
+    border-bottom: 1px solid #aaa;
+    transform: scale(.32);
+    transform-origin: top left;
+  }
+  @media (min-width: 1000px) {
+    iframe { margin-bottom: 0; transform: none; }
+  }
+</style>
+<body>
+<script>
+  const scripts = [
+    "linuxdo-idcflare-word-moyu.user.js",
+    "nodeseek-deepflood-moyu.user.js",
+    "v2ex-moyu.user.js",
+  ];
+  Promise.all(scripts.map((script) => new Promise((resolve) => {
+    const frame = document.createElement("iframe");
+    frame.onload = () => resolve(frame);
+    frame.srcdoc = `<!doctype html><body><script>window.__wordMoyuErrors=[];addEventListener("error",(event)=>window.__wordMoyuErrors.push("${script}: "+event.message))<\/script><main id="main-outlet"><div id="Main"><div class="topic_content">测试正文</div></div><div style="height:1200px"></div></main><script src="/${script}"><\/script></body>`;
+    document.body.append(frame);
+  }))).then(async (frames) => {
+    for (const frame of frames) {
+      const { document: doc } = frame.contentWindow;
+      const title = doc.querySelector(".codex-word-title");
+      if (title?.tagName !== "BUTTON") throw new Error("标题不是按钮");
+      title.click();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      if (!doc.documentElement.classList.contains("codex-word-ribbon-hidden")) throw new Error("点击未收起");
+      title.click();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      if (doc.documentElement.classList.contains("codex-word-ribbon-hidden")) throw new Error("再次点击未展开");
+      frame.contentWindow.scrollTo(0, 600);
+      frame.contentWindow.dispatchEvent(new WheelEvent("wheel", { deltaY: 120 }));
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      if (!doc.documentElement.classList.contains("codex-word-ribbon-hidden")) throw new Error("下滑未隐藏");
+      frame.contentWindow.scrollTo(0, 0);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      if (doc.documentElement.classList.contains("codex-word-ribbon-hidden")) throw new Error("上滑未恢复");
+      if (frame.contentWindow.__wordMoyuErrors.length) throw new Error(frame.contentWindow.__wordMoyuErrors.join("；"));
+    }
+    document.title = "PASS — 三个 Word 摸鱼脚本标题切换";
+  }).catch((error) => {
+    document.title = `FAIL — ${error.message}`;
+    throw error;
+  });
+</script>
