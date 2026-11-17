@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         V2EX Word 摸鱼版
 // @namespace    https://codex.local/userscripts
-// @version      2.2.1
+// @version      2.3.0
 // @description  隐藏头像，并把 V2EX 伪装成 Microsoft Word 文档界面。
 // @author       Codex
 // @match        https://v2ex.com/*
@@ -1289,7 +1289,7 @@
       top: var(--word-ui-height) !important;
       display: block !important;
       height: 44px !important;
-      background: #fff !important;
+      background: var(--word-paper) !important;
       border-bottom: 1px solid #d2d2d2 !important;
       box-shadow: none !important;
     }
@@ -1425,7 +1425,7 @@
     html.codex-word-v2ex #Main textarea {
       box-sizing: border-box !important;
       width: 100% !important;
-      background: #fff !important;
+      background: var(--word-paper) !important;
     }
 
     /*
@@ -1486,6 +1486,68 @@
       bottom: calc(var(--word-status-height) + 20px) !important;
     }
 
+    /*
+     * 深色模式（原站右侧栏的浅色 / 自动 / 深色开关）：文档区换成 Word 深色的中性灰。
+     * 原站深色用藏青底色（--box-*、--button-*），这里改成同一组灰，侧栏、菜单、输入框和文档区一致；文字和链接色沿用原站深色。
+     */
+    html.codex-word-v2ex.codex-word-dark {
+      --word-ink: #f3f3f3;
+      --word-line: #454545;
+      --word-workspace: #1f1f1f;
+      --word-paper: #252526;
+      --box-background-color: var(--word-paper);
+      --box-background-alt-color: #1b1b1c;
+      --box-background-hover-color: #3a3a3a;
+      --box-border-color: var(--word-line);
+      --node-sidebar-hover-color: #1b1b1c;
+      --button-background-color: #333;
+      --button-background-hover-color: #3d3d3d;
+      --button-background-active-color: #2a2a2a;
+      --button-border-color: #555;
+      --button-border-hover-color: #666;
+      color-scheme: dark;
+    }
+
+    html.codex-word-v2ex.codex-word-dark #Top {
+      border-bottom-color: #3a3a3a !important;
+    }
+
+    html.codex-word-v2ex.codex-word-dark #Main {
+      border-color: #3a3a3a;
+      box-shadow: 0 2px 10px rgb(0 0 0 / 55%);
+    }
+
+    html.codex-word-v2ex.codex-word-dark #Rightbar .box {
+      border-color: #3a3a3a !important;
+      box-shadow: 0 1px 3px rgb(0 0 0 / 45%) !important;
+    }
+
+    html.codex-word-v2ex.codex-word-dark #Bottom {
+      color: #a0a0a0 !important;
+      background: var(--word-workspace) !important;
+      border-top-color: #3a3a3a !important;
+    }
+
+    html.codex-word-v2ex.codex-word-dark #Main :is(input, textarea, select, button) {
+      border-color: #555 !important;
+    }
+
+    html.codex-word-v2ex.codex-word-dark #reply-box.reply-box-sticky {
+      border-top-color: #555 !important;
+      box-shadow: 0 -8px 24px rgb(0 0 0 / 50%) !important;
+    }
+
+    html.codex-word-v2ex.codex-word-dark .codex-word-close-editor {
+      color: #ccc !important;
+      border-color: #555 !important;
+    }
+
+    html.codex-word-v2ex.codex-word-dark .codex-word-close-editor:hover {
+      color: #75b7ff !important;
+      background: #3a3a3a !important;
+      border-color: #5b9cf0 !important;
+    }
+
     @media (max-width: 980px) {
       html.codex-word-v2ex #Wrapper > .content {
         grid-template: "main" auto "right" auto / minmax(0, 1fr) !important;
@@ -1529,6 +1591,28 @@
     }
   `;
   (document.head || document.documentElement).append(style);
+
+  /*
+   * 原站换浅色 / 深色（右侧栏开关、自动模式下系统切换、其它标签页同步）都会切换 #Wrapper 的 Night 类，
+   * 这里跟着给 html 加减 codex-word-dark，Word 界面和文档区一起换色。脚本在 document-start 运行，等 #Wrapper 出现再盯它。
+   */
+  const setupDarkMode = () => {
+    const watch = () => {
+      const wrapper = document.getElementById("Wrapper");
+      if (!wrapper) return false;
+      const sync = () =>
+        document.documentElement.classList.toggle("codex-word-dark", wrapper.classList.contains("Night"));
+      sync();
+      new MutationObserver(sync).observe(wrapper, { attributes: true, attributeFilter: ["class"] });
+      return true;
+    };
+    if (watch()) return;
+    const finder = new MutationObserver(() => {
+      if (watch()) finder.disconnect();
+    });
+    finder.observe(document.documentElement, { childList: true, subtree: true });
+  };
+  setupDarkMode();
 
   /*
    * 收藏节点使用 closed Shadow DOM；V2EX 同时把 Shadow Root 暴露在
